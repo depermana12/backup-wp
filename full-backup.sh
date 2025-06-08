@@ -13,6 +13,18 @@
 WORDPRESS_DIR="/var/www/"
 BACKUP_DIR="/backups"
 
+log_info() {
+    echo "[INFO] $1"
+}
+
+log_error() {
+    echo "[ERROR] $1" >&2
+}
+
+log_warning() {
+    echo "[WARNING] $1" >&2
+}
+
 list_wordpress(){
   log_info "Available WordPress site in $WORDPRESS_DIR:"
   local sites=()
@@ -21,13 +33,13 @@ list_wordpress(){
   for site in "$WORDPRESS_DIR"/*; do
     if [[ -d "$site" && -f "$site/wp-config.php" ]]; then
       sites+=("$(basename "$site")")
-      echo "$count) $(basename "$site")"
+      log_info "$count) $(basename "$site")"
       ((count++))
     fi
   done
 
   if [[ ${#sites[@]} -eq 0 ]]; then
-    echo "No WordPress installations found in $WORDPRESS_DIR"
+    log_error "No WordPress installations found in $WORDPRESS_DIR"
     exit 1
   fi
 
@@ -44,7 +56,7 @@ list_wordpress(){
           SELECTED_DIRS="${sites[$((choice-1))]}"
           break
         else
-          echo "Invalid. Please select a valid option."
+          log_error "Invalid. Please select a valid option."
         fi
         ;;
       a)
@@ -80,7 +92,7 @@ backup(){
 
   echo "Starting backup for $site_path"
   if [[ ! -d "$site_path" ]]; then
-    echo "Directory $site_path not found. Exiting."
+    log_error "Directory $site_path not found. Exiting."
     return 1
   fi
 
@@ -88,16 +100,16 @@ backup(){
 
   if [[ $? -eq 0 ]]; then
     local size=$(du -h "$backup_file" | cut -f1)
-    echo "Backup successful: $backup_file ($size)"
+    log_info "Backup successful: $backup_file ($size)"
   else
-    echo "Backup failed for $site_path"
+    log_error "Backup failed for $site_path"
     return 1
   fi
 }
 
 main(){
   # custom dir if provided
-  if[[ -n "$1" ]]; then
+  if [[ -n "$1" ]]; then
     BACKUP_DIR="$1"
   fi
 
@@ -107,7 +119,7 @@ main(){
     backup "$site" "$BACKUP_DIR"
   done
 
-  echo "Backup completed. All backups are stored in $BACKUP_DIR"
+  log_info "Backup completed. All backups are stored in $BACKUP_DIR"
   
 }
 
