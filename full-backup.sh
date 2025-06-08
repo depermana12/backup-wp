@@ -11,7 +11,7 @@
 # ============================================================
 
 WORDPRESS_DIR="/var/www/"
-BACKUP_DIR="/backups"
+BACKUP_DIR="$HOME/wp_backups"
 
 log_info() {
   echo "[$(date '+%d-%m-%y %H:%M:%S')] [INFO] $1"
@@ -42,12 +42,13 @@ list_wordpress() {
   local sites=()
   local count=1
 
-  log_info "Scanning for WordPress installations in $WORDPRESS_DIR:"
+  echo "Scanning for WordPress installations in $WORDPRESS_DIR:"
+  echo ""
 
   for site in "$WORDPRESS_DIR"/*; do
     if [[ -d "$site" && -f "$site/wp-config.php" ]]; then
       sites+=("$(basename "$site")")
-      log_info "$count) $(basename "$site")"
+      echo "$count) $(basename "$site")"
       ((count++))
     fi
   done
@@ -65,7 +66,7 @@ list_wordpress() {
     case $choice in
     [0-9]*)
       if [[ $choice -ge 1 && $choice -le ${#sites[@]} ]]; then
-        log_info "Selected: ${sites[$((choice - 1))]}"
+        echo "Selected: ${sites[$((choice - 1))]}"
         SELECTED_DIRS=("${sites[$((choice - 1))]}")
         break
       else
@@ -73,7 +74,7 @@ list_wordpress() {
       fi
       ;;
     a)
-      log_info "Selected: All sites"
+      echo "Selected: All sites"
       SELECTED_DIRS=("${sites[@]}")
       break
       ;;
@@ -95,7 +96,7 @@ backup_wordpress_db() {
   local timestamp=$(date +"%d%m%Y_%H%M%S")
   local db_backup_file="$backup_dir/db_${site}_${timestamp}.sql"
 
-  log_info "Starting database backup for $wp_config_file"
+  echo "Starting database backup for $wp_config_file"
 
   if [[ ! -f "$wp_config_file" ]]; then
     log_error "Failed to extract database configs from $wp_config_file"
@@ -143,7 +144,7 @@ backup_wordpress_dir() {
   local site_path="$WORDPRESS_DIR/$site"
   local backup_file="$backup_dir/${site}_${timestamp}.tar.gz"
 
-  log_info "Starting backup for $site"
+  echo "Starting backup for $site"
 
   if [[ ! -d "$site_path" ]]; then
     log_error "Directory $site_path not found."
@@ -168,10 +169,10 @@ backup() {
 
   if [[ ! -d "$backup_dir" ]]; then
     mkdir -p "$backup_dir"
-    log_info "Created backup directory: $backup_dir"
+    echo "Created backup directory: $backup_dir"
   fi
 
-  log_info "=====Starting full backup for $site====="
+  echo "=====Starting full backup for $site====="
 
   backup_wordpress_dir "$site" "$backup_dir"
   local dir_status=$?
@@ -200,21 +201,21 @@ main() {
     BACKUP_DIR="$1"
   fi
 
-  log_info "WordPress Backup Script Starting"
-  log_info "WordPress Directory: $WORDPRESS_DIR"
-  log_info "Backup Directory: $BACKUP_DIR"
+  echo "WordPress Backup Script Starting"
+  echo "WordPress Directory: $WORDPRESS_DIR"
+  echo "Backup Directory: $BACKUP_DIR"
   echo ""
 
   list_wordpress
 
   echo ""
-  log_info "Starting backup process..."
+  echo "Starting backup process..."
 
   for site in "${SELECTED_DIRS[@]}"; do
     backup "$site" "$BACKUP_DIR"
   done
 
-  log_info "Backup completed. All backups are stored in $BACKUP_DIR"
+  echo "Backup completed. All backups are stored in $BACKUP_DIR"
 }
 
 main "$@"
