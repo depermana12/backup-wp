@@ -144,8 +144,6 @@ backup_wordpress_dir() {
   local site_path="$WORDPRESS_DIR/$site"
   local backup_file="$backup_dir/${site}_${timestamp}.tar.gz"
 
-  echo "Starting backup for $site"
-
   if [[ ! -d "$site_path" ]]; then
     log_error "Directory $site_path not found."
     return 1
@@ -161,6 +159,23 @@ backup_wordpress_dir() {
     log_error "Backup failed for $site_path"
     return 1
   fi
+}
+
+backup_nginx() {
+  local site="$1"
+  local backup_dir="$2"
+  local timestamp=$(date +"%d%m%Y_%H%M%S")
+  local nginx_conf_path="/etc/nginx/sites-available/$site"
+  local backup_file="$backup_dir/nginx_${site}_${timestamp}.txt"
+
+  if [[ -f "$nginx_conf_path" ]]; then
+    cp "$nginx_conf_path" "$backup_file"
+    log_info "Nginx configuration backup successful: $backup_file"
+  else
+    log_error "Nginx configuration file not found: $nginx_conf_path"
+  fi
+
+  return 0
 }
 
 backup() {
@@ -180,10 +195,13 @@ backup() {
   backup_wordpress_db "$site" "$backup_dir"
   local db_status=$?
 
-  if [[ $dir_status -eq 0 && $db_status -eq 0 ]]; then
+  backup_nginx "$site" "$backup_dir"
+  local nginx_status=$?
+
+  if [[ $dir_status -eq 0 && $db_status -eq 0 && $nginx_status -eq 0 ]]; then
     log_info "Complete backup successful for $site"
-  elif [[ $dir_status -eq 0 && $db_status -ne 0 ]]; then
-    log_warning "Files backed up successfully, but database backup failed for $site"
+  elif [[ $dir_status -eq 0 && $db_status -ne 0 && $nginx_status -ne 0 ]]; then
+    log_warning "Files backed up successfully, but database and Nginx backup failed for $site"
   elif [[ $db_status -eq 0 ]]; then
     log_warning "Database backed up successfully, but file backup failed for $site"
   else
@@ -209,7 +227,6 @@ main() {
   list_wordpress
 
   echo ""
-  echo "Starting backup process..."
 
   for site in "${SELECTED_DIRS[@]}"; do
     backup "$site" "$BACKUP_DIR"
