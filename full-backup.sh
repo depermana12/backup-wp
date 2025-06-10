@@ -14,15 +14,15 @@ WORDPRESS_DIR="/var/www/"
 BACKUP_DIR="$HOME/wp_backups"
 
 log_info() {
-  echo "[$(date '+%d-%m-%y %H:%M:%S')] [INFO] $1"
+  echo "[INFO] $1"
 }
 
 log_error() {
-  echo "[$(date '+%d-%m-%y %H:%M:%S')] [ERROR] $1" >&2
+  echo "[ERROR] $1" >&2
 }
 
 log_warning() {
-  echo "[$(date '+%d-%m-%y %H:%M:%S')] [WARNING] $1" >&2
+  echo "[WARNING] $1" >&2
 }
 
 check_dependencies() {
@@ -42,8 +42,8 @@ list_wordpress() {
   local sites=()
   local count=1
 
-  echo "Scanning for WordPress installations in $WORDPRESS_DIR:"
-  echo ""
+  echo "Scanning WordPress installations"
+  echo
 
   for site in "$WORDPRESS_DIR"/*; do
     if [[ -d "$site" && -f "$site/wp-config.php" ]]; then
@@ -52,11 +52,6 @@ list_wordpress() {
       ((count++))
     fi
   done
-
-  if [[ ${#sites[@]} -eq 0 ]]; then
-    log_error "No WordPress installations found in $WORDPRESS_DIR"
-    exit 1
-  fi
 
   echo "a) All site"
   echo "q) Quit"
@@ -96,7 +91,7 @@ backup_wordpress_db() {
   local timestamp=$(date +"%d%m%Y_%H%M%S")
   local db_backup_file="$backup_dir/db_${site}_${timestamp}.sql"
 
-  echo "Starting database backup for $wp_config_file"
+  echo "Starting database backup for $site"
 
   if [[ ! -f "$wp_config_file" ]]; then
     log_error "Failed to extract database configs from $wp_config_file"
@@ -141,22 +136,17 @@ backup_wordpress_dir() {
   local site="$1"
   local backup_dir="$2"
   local timestamp=$(date +"%d%m%Y_%H%M%S")
-  local site_path="$WORDPRESS_DIR/$site"
   local backup_file="$backup_dir/${site}_${timestamp}.tar.gz"
 
-  if [[ ! -d "$site_path" ]]; then
-    log_error "Directory $site_path not found."
-    return 1
-  fi
+  log_info "Starting file backup for $site"
 
-  tar -czf "$backup_file" -C "$WORDPRESS_DIR" "$site" 2>/dev/null
-
-  if [[ $? -eq 0 ]]; then
+  if tar -czf "$backup_file" -C "$WORDPRESS_DIR" "$site" 2>/dev/null; then
     local size=$(du -h "$backup_file" | cut -f1)
-    log_info "Backup successful: $backup_file ($size)"
+    log_info "File backup successful: $backup_file ($size)"
     return 0
   else
-    log_error "Backup failed for $site_path"
+    log_error "File backup failed for $site"
+    [[ -f "$backup_file" ]] && rm -f "$backup_file"
     return 1
   fi
 }
@@ -184,10 +174,10 @@ backup() {
 
   if [[ ! -d "$backup_dir" ]]; then
     mkdir -p "$backup_dir"
-    echo "Created backup directory: $backup_dir"
+    echo "Backup directory created: $backup_dir"
   fi
 
-  echo "=====Starting full backup for $site====="
+  echo "==========Starting backup for $site=========="
 
   backup_wordpress_dir "$site" "$backup_dir"
   local dir_status=$?
@@ -212,6 +202,9 @@ backup() {
 }
 
 main() {
+  echo "          WordPress Backup Script"
+  echo "#############################################"
+
   check_dependencies
 
   # custom dir if provided
@@ -219,20 +212,19 @@ main() {
     BACKUP_DIR="$1"
   fi
 
-  echo "WordPress Backup Script Starting"
-  echo "WordPress Directory: $WORDPRESS_DIR"
-  echo "Backup Directory: $BACKUP_DIR"
+  echo "WordPress directory: $WORDPRESS_DIR"
+  echo "Backup directory: $BACKUP_DIR"
   echo ""
 
   list_wordpress
-
   echo ""
 
   for site in "${SELECTED_DIRS[@]}"; do
     backup "$site" "$BACKUP_DIR"
   done
 
-  echo "Backup completed. All backups are stored in $BACKUP_DIR"
+  echo ""
+  echo "Backup process completed"
 }
 
 main "$@"
